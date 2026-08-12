@@ -1,5 +1,7 @@
 # home-infra
 
+[![Lint](https://github.com/mazzma12/home-infra/actions/workflows/lint.yml/badge.svg)](https://github.com/mazzma12/home-infra/actions/workflows/lint.yml)
+
 Terraform for a single Oracle Cloud **Always Free** ARM box, plus a retry loop that
 keeps trying until Oracle actually has capacity.
 
