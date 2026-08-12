@@ -1,0 +1,72 @@
+
+# https://github.com/terraform-linters/setup-tflint
+
+name: Lint
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+      - '*/**/*.tf'
+      - '*/**/*.hcl'
+      - '.github/workflows/lint.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '*/**/*.tf'
+      - '*/**/*.hcl'
+      - '.github/workflows/lint.yml'
+jobs:
+  tflint:
+    runs-on: ubuntu-latest
+    env:
+      FORMAT: compact
+      ERROR_LEVEL: error
+
+    steps:
+    - uses: actions/checkout@v7
+      name: Checkout source code
+
+    - uses: actions/cache@v4
+      name: Cache plugin dir
+      with:
+        path: ~/.tflint.d/plugins
+        key: tflint-${{ hashFiles('.tflint.hcl') }}
+
+    - uses: terraform-linters/setup-tflint@v6.3.0
+      name: Setup TFLint
+      with:
+        tflint_version: v0.61.0
+
+    - name: Show version
+      run: tflint --version
+
+    - name: Init TFLint
+      run: tflint --init
+
+    - name: TFLint terraform
+      run: tflint -f "${FORMAT}" --chdir=terraform --minimum-failure-severity="${ERROR_LEVEL}"
+      if: ${{ always() }}
+
+    - uses: hashicorp/setup-terraform@v4.0.1
+      name: Setup Terraform
+      with:
+        terraform_wrapper: false
+
+    - name: Terraform fmt
+      run: terraform fmt -check -recursive
+      if: ${{ always() }}
+
+    # -backend=false: state is local and untracked, so CI only needs the provider
+    # schema to validate against. No OCI credentials are involved.
+    - name: Terraform validate
+      run: |
+        terraform -chdir=terraform init -backend=false
+        terraform -chdir=terraform validate
+      if: ${{ always() }}
+
+    # - name: TFLint all directories
+    #   run: for dir in */; do if [ -d "$dir" ]; then echo $dir; tflint -f "${FORMAT}" --minimum-failure-severity "${ERROR_LEVEL}" $dir; fi; done
+    #   if: ${{ always() }}

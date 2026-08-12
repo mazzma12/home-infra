@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored) before the first apply.
+budget_alert_recipient = "you@example.com"
