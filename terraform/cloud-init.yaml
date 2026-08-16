@@ -1,19 +1,12 @@
 #cloud-config
-# The host half of opening :80 and :443 — see network.tf for the VCN half.
+# Canonical's OCI image boots with an INPUT chain ending in REJECT and only 22
+# open, so the security list alone is not enough.
 #
-# Canonical's OCI images boot with an iptables INPUT chain that ends in
-# `REJECT --reject-with icmp-host-prohibited` and only opens 22, so a listener on
-# :80 is refused at the host even once the VCN allows the packet through.
-#
-# cloud-init only runs on an instance's *first* boot, so this file does nothing
-# to an already-running instance; it exists so a replacement (an image_id change
-# forces one) comes back with both ports already open instead of silently
-# regressing. The live instance was fixed out of band with the same commands.
+# Only runs on first boot: this does nothing to the running instance, which was
+# opened out of band. It exists so a replacement comes back with 80/443 open.
 runcmd:
-  # Insert at the head of INPUT rather than at a fixed index: position 5 is only
-  # correct for the chain as Canonical currently ships it. `-C` first keeps this
-  # idempotent if the rule somehow already exists.
+  # Insert at the head rather than a fixed index, which is only correct for the
+  # chain as Canonical currently ships it.
   - sh -c "for p in 80 443; do iptables -C INPUT -p tcp -m state --state NEW --dport $p -j ACCEPT 2>/dev/null || iptables -I INPUT -p tcp -m state --state NEW --dport $p -j ACCEPT; done"
-  # Persist to /etc/iptables/rules.v4, which netfilter-persistent restores on
-  # every subsequent boot. Without this the rules are lost at the next reboot.
+  # Persist to rules.v4, otherwise the rules are lost at the next reboot.
   - netfilter-persistent save

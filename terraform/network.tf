@@ -1,20 +1,10 @@
-# Opening a port on OCI takes two layers, and both must agree: the VCN firewall
-# (this file) and the host's own iptables (see cloud-init.yaml). Neither one on
-# its own gets a packet to a listener on :80 or :443.
+# Imported, not created:
+#   terraform import oci_core_security_list.default <ocid>
 #
-# 80 is not optional even for a TLS-only site: Let's Encrypt's HTTP-01 challenge
-# is answered on 80 from outside, so blocking it blocks certificate issuance and
-# every later renewal.
+# Rules are a whole-set declaration, not a patch — dropping the port 22 block
+# locks SSH out. Plan-check before applying.
 #
-# This is the subnet's Default Security List, created by the console in 2024 and
-# imported rather than created:
-#
-#   terraform import oci_core_security_list.default <security list OCID>
-#
-# Its rules are a whole-set declaration, not a patch — the four blocks below the
-# new ones are the pre-existing rules, transcribed verbatim from the live list.
-# Deleting or mistyping the port 22 block locks SSH out of the instance, so any
-# change here must be plan-checked before apply.
+# The host's own iptables must agree; see cloud-init.yaml.
 
 data "oci_core_subnet" "instance" {
   subnet_id = var.subnet_id
@@ -32,10 +22,8 @@ resource "oci_core_security_list" "default" {
     stateless        = false
   }
 
-  # --- pre-existing, do not remove -----------------------------------------
-
   ingress_security_rules {
-    protocol    = "6" # TCP; OCI takes IANA protocol numbers, not names
+    protocol    = "6" # TCP
     source      = "0.0.0.0/0"
     source_type = "CIDR_BLOCK"
     stateless   = false
@@ -45,7 +33,6 @@ resource "oci_core_security_list" "default" {
     }
   }
 
-  # Fragmentation-needed, so path MTU discovery works from anywhere.
   ingress_security_rules {
     protocol    = "1" # ICMP
     source      = "0.0.0.0/0"
@@ -57,7 +44,6 @@ resource "oci_core_security_list" "default" {
     }
   }
 
-  # All destination-unreachable codes, but only from inside the VCN.
   ingress_security_rules {
     protocol    = "1"
     source      = "10.0.0.0/16"
@@ -68,8 +54,8 @@ resource "oci_core_security_list" "default" {
     }
   }
 
-  # --- added for web traffic -------------------------------------------------
-
+  # 80 is required even for a TLS-only site: Let's Encrypt answers the HTTP-01
+  # challenge on it, at issuance and at every renewal.
   ingress_security_rules {
     protocol    = "6"
     source      = "0.0.0.0/0"
