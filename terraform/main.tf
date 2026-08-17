@@ -37,6 +37,11 @@ resource "terraform_data" "image_id" {
 resource "oci_core_instance" "generated_oci_core_instance" {
   lifecycle {
     replace_triggered_by = [terraform_data.image_id]
+
+    # metadata is ForceNew, so adding user_data to the live instance plans as a
+    # destroy. Scoped to the one key: creates still read it, and a changed
+    # ssh_authorized_keys must still surface as the replacement it is.
+    ignore_changes = [metadata["user_data"]]
   }
 
   agent_config {
@@ -108,7 +113,10 @@ resource "oci_core_instance" "generated_oci_core_instance" {
     assign_ipv6ip             = "false"
     assign_private_dns_record = "true"
     assign_public_ip          = "true"
-    subnet_id                 = var.subnet_id
+    # Empty rather than omitted: nsg_ids is Optional+Computed, so leaving it out
+    # means "keep whatever is attached" and strands any NSG bound to the VNIC.
+    nsg_ids   = []
+    subnet_id = var.subnet_id
   }
   display_name = var.instance_name
   instance_options {
@@ -118,6 +126,7 @@ resource "oci_core_instance" "generated_oci_core_instance" {
   metadata = {
     # chomp: file() keeps the trailing newline, which would show as a perpetual diff.
     "ssh_authorized_keys" = chomp(file(pathexpand(var.ssh_public_key_path)))
+    "user_data"           = base64encode(file("${path.module}/cloud-init.yaml"))
   }
   shape = "VM.Standard.A1.Flex"
   shape_config {

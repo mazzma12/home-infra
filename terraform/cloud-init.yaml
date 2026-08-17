@@ -1,0 +1,12 @@
+#cloud-config
+# Canonical's OCI image boots with an INPUT chain ending in REJECT and only 22
+# open, so the security list alone is not enough.
+#
+# Only runs on first boot: this does nothing to the running instance, which was
+# opened out of band. It exists so a replacement comes back with 80/443 open.
+runcmd:
+  # Insert at the head rather than a fixed index, which is only correct for the
+  # chain as Canonical currently ships it.
+  - sh -c "for p in 80 443; do iptables -C INPUT -p tcp -m state --state NEW --dport $p -j ACCEPT 2>/dev/null || iptables -I INPUT -p tcp -m state --state NEW --dport $p -j ACCEPT; done"
+  # Persist to rules.v4, otherwise the rules are lost at the next reboot.
+  - netfilter-persistent save
