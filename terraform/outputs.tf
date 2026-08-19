@@ -21,3 +21,13 @@ output "ssh_config" {
         IdentitiesOnly yes
   EOT
 }
+
+# The namespace is a tenancy-wide constant with no obvious home in the console,
+# and every rclone/CLI call against the bucket needs it.
+output "drive_bucket" {
+  description = "Namespace and name of the drive bucket, as rclone needs them."
+  value = {
+    namespace = data.oci_objectstorage_namespace.this.namespace
+    name      = oci_objectstorage_bucket.drive.name
+  }
+}

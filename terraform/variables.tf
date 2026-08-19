@@ -94,3 +94,9 @@ variable "budget_alert_recipient" {
   description = "Email for budget alerts. OCI budget alerts are email-only, so this cannot reuse the Apprise/Telegram path deploy.sh uses."
   type        = string
 }
+
+variable "drive_bucket_name" {
+  description = "Object Storage bucket used as personal drive. Unique per namespace+region only, not globally as on S3."
+  type        = string
+  default     = "mazzma-drive"
+}
